@@ -1,3 +1,9 @@
-Golf Games v1.10 GPS
+Golf Games v1.18 GPS + Obstacles
 
-GPS shot tracking plus preloaded approximate green-center coordinates for Løgstør Golfklub 18-hole course. Green positions are estimated from the published course map, official scorecard distances and aerial/drone course references; they can be corrected on-course with the Update Green Center Here button.
+Changes:
+- Clean portrait Hole 1 map.
+- Robust zoom controls, mouse-wheel zoom, double-click zoom and drag after zoom.
+- Dynamic obstacle distances from the current GPS position.
+- TO = distance to the near edge of an obstacle.
+- CARRY = distance required to clear the obstacle.
+- Hole 1 obstacle positions are initial map-based estimates and should be verified on the course before being treated as precise.

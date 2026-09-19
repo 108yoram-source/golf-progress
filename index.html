@@ -43,6 +43,22 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
 .gps-shot b{font-size:17px;color:var(--green)}
 .gps-meta{font-size:12px;color:var(--muted)}
 .gps-actions{display:flex;gap:8px;flex-wrap:wrap}.gps-actions button{flex:1;min-width:120px}.green-distance{padding:12px;border-radius:12px;background:#e8f3eb;color:var(--green);font-weight:750;font-size:18px;margin:10px 0 8px}.green-distance.missing{background:#fff5d9;color:#6d5413;font-size:14px;font-weight:600}
+.hole-map{position:relative;border:1px solid #c8d9cc;border-radius:14px;overflow:hidden;background:#eef5ec;margin-top:10px}
+.hole-map-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fbfefc;border-bottom:1px solid #c8d9cc}
+.hole-map-canvas{position:relative;width:100%;height:78svh;min-height:560px;max-height:1000px;border-radius:16px;background:#eef2ea;border:1px solid #cbd8c8;overflow:hidden}
+.map-stage{position:relative;width:100%;height:100%;overflow:hidden;background:#eef2ea}
+.map-viewport{position:absolute;inset:0;overflow:hidden;touch-action:none}
+#holeMapImage{position:absolute;left:50%;top:50%;height:92%;width:auto;max-width:none;object-fit:contain;transform-origin:center center;user-select:none;-webkit-user-drag:none}
+.map-zoom-controls{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.map-zoom-controls button{width:42px;height:42px;border-radius:10px;border:1px solid #b8c8b9;background:#fff;box-shadow:0 2px 8px #0003;font-size:22px;font-weight:700}
+.map-label{position:absolute;left:10px;top:10px;background:#ffffffdd;padding:7px 10px;border-radius:10px;font-size:12px;font-weight:700;color:#173b24;z-index:3}
+.obstacle-card{margin-top:12px}.obstacle-note{font-size:12px;color:var(--muted);margin-top:8px}.obstacle-row{display:grid;grid-template-columns:1fr 76px 86px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.obstacle-row:last-child{border-bottom:0}.obstacle-name{font-weight:700}.obstacle-sub{font-size:11px;color:var(--muted);margin-top:2px}.obstacle-num{text-align:right;font-weight:750}.obstacle-num span{display:block;font-size:10px;font-weight:500;color:var(--muted)}.carry{color:var(--green2)}
+
+.hole-map-card{margin-top:10px}
+.hole-map-canvas svg{position:absolute;inset:0;width:100%;height:100%}
+.map-legend{display:flex;gap:8px;flex-wrap:wrap;padding:8px 10px;background:#fff;font-size:11px;color:var(--muted)}
+.map-legend span{white-space:nowrap}.map-chip{padding:4px 7px;border-radius:999px;background:#edf4ef}
+.map-note{padding:8px 10px;font-size:11px;color:var(--muted);background:#fff}
 </style>
 </head>
 <body>
@@ -76,6 +92,27 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
   <div class="statgrid">
     <div class="stat"><b id="parVal">4</b><span>Par</span></div><div class="stat"><b id="distanceVal">350</b><span>Metres</span></div><div class="stat"><b id="strokesVal">0</b><span>Strokes</span></div><div class="stat"><b id="puttsVal">0</b><span>Putts</span></div>
   </div>
+  <div class="card hole-map-card">
+    <div class="topline"><h3 style="margin:0">Hole Map</h3><span class="muted" id="mapMeta"></span></div>
+    <div class="hole-map">
+      <div class="hole-map-head"><b id="mapHoleTitle">Hole</b><span class="muted" id="mapGreenDistance"></span></div>
+      <div id="holeMapCanvas" class="hole-map-canvas"></div>
+      <div class="muted" style="font-size:12px;margin-top:8px">
+        Hole 1 map based on the GLFR map you provided. Tee is at the bottom and green at the top. Use +/− or drag after zooming.
+      </div>
+      <div class="map-legend">
+        <span class="map-chip">📍 You / shot</span><span class="map-chip">⛳ Green</span><span class="map-chip">🟡 Bunker</span><span class="map-chip">💧 Water</span><span class="map-chip">🌳 Trees</span>
+      </div>
+      <div id="mapNote" class="map-note">GPS shot positions are shown on the hole map when available. Course landmarks will be added after their positions are verified.</div>
+    </div>
+  </div>
+
+  <div class="card obstacle-card">
+    <div class="topline"><h3 style="margin:0">Obstacles from Current Ball</h3><span class="muted" id="obstacleAccuracy"></span></div>
+    <div id="obstacleDistances"><div class="muted">Start GPS to calculate dynamic obstacle distances.</div></div>
+    <div class="obstacle-note">TO = distance to the near edge. CARRY = distance required to clear the obstacle. Initial Hole 1 obstacle positions are approximate map-based estimates and should be verified on the course.</div>
+  </div>
+
   <div class="card">
     <h3>Actual result of the shot</h3>
     <div class="choice-grid two" id="actualChoices">
@@ -174,7 +211,7 @@ function startGame(){
  setup.holes=selected('holesChoices')||'18';setup.tee=selected('teeChoices')||'yellow';
  let indexes=setup.holes==='front9'?[0,1,2,3,4,5,6,7,8]:setup.holes==='back9'?[9,10,11,12,13,14,15,16,17]:[...Array(18).keys()];
  game={id:Date.now(),date:new Date().toISOString(),player:$('player').value.trim()||'Player',tee:setup.tee,indexes,holePos:0,holes:indexes.map(i=>({number:i+1,par:pars[i],distance:tees[setup.tee][i],shots:[],putts:[],penalties:[],gpsStart:null,gpsShots:[],greenCenter:COURSE_GREEN_CENTERS[i+1]?{...COURSE_GREEN_CENTERS[i+1]}:null,greenCenterSource:'course-map-estimate'}))};
- renderHole();show('game');
+ renderHole(); setupMapTouch();show('game');
 }
 function current(){return game.holes[game.holePos]}
 function renderHole(){
@@ -185,7 +222,70 @@ function renderHole(){
  stopGPS();
  gpsState={active:false,point:null};
  renderGPS();
+ renderHoleMap();
  $('puttingForm').classList.add('hidden');$('startPuttingBtn').classList.remove('hidden');$('puttingStatus').textContent=h.putts.length?`${h.putts.length} putt(s) recorded`:'';
+}
+function renderHoleMap(){
+  const h=current(); if(!h)return;
+  const canvas=$('holeMapCanvas'); if(!canvas)return;
+  canvas.innerHTML=`
+    <div class="map-stage" id="mapStage">
+      <div class="map-viewport" id="mapViewport">
+        <img id="holeMapImage" src="assets/hole1-clean.png" alt="Løgstør Hole 1 clean map">
+      </div>
+      <div class="map-zoom-controls">
+        <button type="button" onclick="mapZoom(1.2)">+</button>
+        <button type="button" onclick="mapZoom(0.833333)">−</button>
+        <button type="button" onclick="mapReset()">↺</button>
+      </div>
+      <div class="map-label">Hole ${h.number} · Tee ↓ · Green ↑</div>
+    </div>`;
+  $('mapMeta').textContent=`Hole ${h.number} · Par ${h.par} · ${h.distance} m`;
+  mapReset();
+  setTimeout(setupMapTouch,0);
+  renderObstacleDistances();
+}
+
+let holeMapScale=1;
+let holeMapX=0, holeMapY=0;
+
+function applyMapTransform(){
+  const img=$('holeMapImage'); if(!img)return;
+  img.style.transform=`translate(calc(-50% + ${holeMapX}px), calc(-50% + ${holeMapY}px)) scale(${holeMapScale})`;
+}
+
+function mapZoom(factor){
+  holeMapScale=Math.max(1,Math.min(3.5,holeMapScale*factor));
+  applyMapTransform();
+}
+
+function mapReset(){
+  holeMapScale=1;
+  holeMapX=0;
+  holeMapY=0;
+  applyMapTransform();
+}
+
+// Simple touch drag when zoomed.
+function setupMapTouch(){
+  const vp=$('mapViewport'); if(!vp || vp.dataset.bound==='1')return;
+  vp.dataset.bound='1';
+  let sx=0,sy=0,drag=false;
+  vp.addEventListener('pointerdown',e=>{
+    drag=true;sx=e.clientX;sy=e.clientY;
+    try{vp.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  vp.addEventListener('pointermove',e=>{
+    if(!drag||holeMapScale<=1)return;
+    holeMapX += e.clientX-sx;
+    holeMapY += e.clientY-sy;
+    sx=e.clientX;sy=e.clientY;
+    applyMapTransform();
+  });
+  vp.addEventListener('pointerup',()=>drag=false);
+  vp.addEventListener('pointercancel',()=>drag=false);
+  vp.addEventListener('wheel',e=>{e.preventDefault();mapZoom(e.deltaY<0?1.12:0.893)}, {passive:false});
+  vp.addEventListener('dblclick',()=>mapZoom(1.35));
 }
 function actualChanged(){
  let v=selected('actualChoices');$('distanceBox').classList.toggle('hidden',v!=='distance');
@@ -287,6 +387,46 @@ function distanceMeters(a,b){
 function greenDistanceFrom(point,h){
   return point&&h?.greenCenter?distanceMeters(point,h.greenCenter):null;
 }
+// Hole 1 obstacle model. Coordinates are initial estimates derived from the course map geometry.
+const HOLE1_TEE={lat:56.9469502261,lon:9.2533482429};
+const HOLE1_AXIS_BEARING=45;
+const HOLE1_OBSTACLES=[
+  {name:'Right bunker',front:115,back:128,side:'right',offset:22},
+  {name:'Right bunker',front:135,back:148,side:'right',offset:24},
+  {name:'Fairway bunker',front:190,back:204,side:'left',offset:20},
+  {name:'Left green bunker',front:270,back:286,side:'left',offset:18},
+  {name:'Right green bunker',front:275,back:291,side:'right',offset:18}
+];
+function destinationPoint(lat,lon,bearingDeg,metres){
+  const R=6371000, br=bearingDeg*Math.PI/180, p1=lat*Math.PI/180, l1=lon*Math.PI/180, d=metres/R;
+  const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(br));
+  const l2=l1+Math.atan2(Math.sin(br)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2));
+  return {lat:p2*180/Math.PI,lon:l2*180/Math.PI};
+}
+function obstaclePoint(distanceAlong,sideOffset){
+  const center=destinationPoint(HOLE1_TEE.lat,HOLE1_TEE.lon,HOLE1_AXIS_BEARING,distanceAlong);
+  if(!sideOffset)return center;
+  const sideBearing=HOLE1_AXIS_BEARING+(sideOffset>0?90:-90);
+  return destinationPoint(center.lat,center.lon,sideBearing,Math.abs(sideOffset));
+}
+function renderObstacleDistances(){
+  const box=$('obstacleDistances'); if(!box)return;
+  const h=current();
+  if(!h || h.number!==1){box.innerHTML='<div class="muted">Obstacle map data will be added for this hole.</div>';return}
+  const p=gpsState.point||h.gpsStart;
+  if(!p){box.innerHTML='<div class="muted">Start GPS to calculate dynamic obstacle distances.</div>';return}
+  const rows=HOLE1_OBSTACLES.map(o=>{
+    const front=obstaclePoint(o.front,o.side==='right'?o.offset:-o.offset);
+    const back=obstaclePoint(o.back,o.side==='right'?o.offset:-o.offset);
+    const to=distanceMeters(p,{lat:front.lat,lng:front.lon});
+    const carry=distanceMeters(p,{lat:back.lat,lng:back.lon});
+    return `<div class="obstacle-row"><div><div class="obstacle-name">${o.name}</div><div class="obstacle-sub">${o.side==='right'?'Right':'Left'} side</div></div><div class="obstacle-num">${Math.round(to)} m<span>TO</span></div><div class="obstacle-num carry">${Math.round(carry)} m<span>CARRY</span></div></div>`;
+  }).join('');
+  box.innerHTML=rows;
+  const acc=p.accuracy?`GPS ±${Math.round(p.accuracy)} m`:'';
+  if($('obstacleAccuracy'))$('obstacleAccuracy').textContent=acc;
+}
+
 function renderGreenDistance(point=current()?.gpsStart){
   const h=current(); const box=$('greenDistance'),hint=$('greenHint'); if(!box||!h)return;
   if(!h.greenCenter){
@@ -390,6 +530,7 @@ function renderGPS(){
   $('ballHereBtn').disabled=!gpsState.active;
   $('setGreenBtn').disabled=!gpsState.active;
   renderGreenDistance(gpsState.point||h.gpsStart||null);
+  renderObstacleDistances();
   box.innerHTML=h.gpsShots.length?h.gpsShots.map((s,i)=>`<div class="gps-shot"><div><b>${i+1}. ${s.distance.toFixed(1)} m</b><div class="gps-meta">${s.club} · GPS accuracy ±${s.accuracy?Math.round(s.accuracy):'?'} m${s.distanceToGreen!=null?' · '+Math.round(s.distanceToGreen)+' m to green':''}</div></div><span class="muted">shot ${i+1}</span></div>`).join(''):'<div class="gps-meta">No GPS shots recorded on this hole.</div>';
 }
 
