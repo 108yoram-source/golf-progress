@@ -52,6 +52,13 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
 .map-zoom-controls{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
 .map-zoom-controls button{width:42px;height:42px;border-radius:10px;border:1px solid #b8c8b9;background:#fff;box-shadow:0 2px 8px #0003;font-size:22px;font-weight:700}
 .map-label{position:absolute;left:10px;top:10px;background:#ffffffdd;padding:7px 10px;border-radius:10px;font-size:12px;font-weight:700;color:#173b24;z-index:3}
+.map-image-overlay{position:absolute;left:50%;top:50%;height:96%;width:auto;aspect-ratio:2/3;transform-origin:center center;pointer-events:none;z-index:2}
+.obstacle-badge{position:absolute;min-width:96px;padding:5px 7px;border-radius:9px;background:#ffffffee;border:1px solid #a9b7aa;box-shadow:0 2px 7px #0003;text-align:center;font-size:10px;line-height:1.1;font-weight:800;color:#173b24}
+.obstacle-badge b{display:block;font-size:14px}
+.obstacle-badge span{font-size:9px;font-weight:700}
+.obstacle-badge.to{border-left:4px solid #e2a400}
+.obstacle-badge.carry{border-left:4px solid #c44}
+
 .obstacle-card{margin-top:12px}.obstacle-note{font-size:12px;color:var(--muted);margin-top:8px}.obstacle-row{display:grid;grid-template-columns:1fr 76px 86px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.obstacle-row:last-child{border-bottom:0}.obstacle-name{font-weight:700}.obstacle-sub{font-size:11px;color:var(--muted);margin-top:2px}.obstacle-num{text-align:right;font-weight:750}.obstacle-num span{display:block;font-size:10px;font-weight:500;color:var(--muted)}.carry{color:var(--green2)}
 
 .hole-map-card{margin-top:10px}
@@ -233,6 +240,7 @@ function renderHoleMap(){
       <div class="map-viewport" id="mapViewport">
         <img id="holeMapImage" src="assets/hole1-clean.png" alt="Løgstør Hole 1 clean map">
       </div>
+      <div id="mapObstacleOverlay" class="map-image-overlay" aria-hidden="true"></div>
       <div class="map-zoom-controls">
         <button type="button" onclick="mapZoom(1.2)">+</button>
         <button type="button" onclick="mapZoom(0.833333)">−</button>
@@ -250,8 +258,11 @@ let holeMapScale=1;
 let holeMapX=0, holeMapY=0;
 
 function applyMapTransform(){
-  const img=$('holeMapImage'); if(!img)return;
-  img.style.transform=`translate(calc(-50% + ${holeMapX}px), calc(-50% + ${holeMapY}px)) scale(${holeMapScale})`;
+  const img=$('holeMapImage'); 
+  const ov=$('mapObstacleOverlay');
+  const tr=`translate(calc(-50% + ${holeMapX}px), calc(-50% + ${holeMapY}px)) scale(${holeMapScale})`;
+  if(img)img.style.transform=tr;
+  if(ov)ov.style.transform=tr;
 }
 
 function mapZoom(factor){
@@ -410,19 +421,48 @@ function obstaclePoint(distanceAlong,sideOffset){
   return destinationPoint(center.lat,center.lon,sideBearing,Math.abs(sideOffset));
 }
 function renderObstacleDistances(){
-  const box=$('obstacleDistances'); if(!box)return;
+  const box=$('obstacleDistances');
+  const overlay=$('mapObstacleOverlay');
   const h=current();
-  if(!h || h.number!==1){box.innerHTML='<div class="muted">Obstacle map data will be added for this hole.</div>';return}
+  if(!h || h.number!==1){
+    if(box)box.innerHTML='<div class="muted">Obstacle map data will be added for this hole.</div>';
+    if(overlay)overlay.innerHTML='';
+    return;
+  }
   const p=gpsState.point||h.gpsStart;
-  if(!p){box.innerHTML='<div class="muted">Start GPS to calculate dynamic obstacle distances.</div>';return}
-  const rows=HOLE1_OBSTACLES.map(o=>{
+  if(!p){
+    if(box)box.innerHTML='<div class="muted">Start GPS to calculate dynamic obstacle distances.</div>';
+    if(overlay)overlay.innerHTML='<div class="obstacle-badge" style="left:43%;top:16%"><b>GPS</b><span>START GPS</span></div>';
+    return;
+  }
+  const items=HOLE1_OBSTACLES.map((o,i)=>{
     const front=obstaclePoint(o.front,o.side==='right'?o.offset:-o.offset);
     const back=obstaclePoint(o.back,o.side==='right'?o.offset:-o.offset);
-    const to=distanceMeters(p,{lat:front.lat,lng:front.lon});
-    const carry=distanceMeters(p,{lat:back.lat,lng:back.lon});
-    return `<div class="obstacle-row"><div><div class="obstacle-name">${o.name}</div><div class="obstacle-sub">${o.side==='right'?'Right':'Left'} side</div></div><div class="obstacle-num">${Math.round(to)} m<span>TO</span></div><div class="obstacle-num carry">${Math.round(carry)} m<span>CARRY</span></div></div>`;
-  }).join('');
-  box.innerHTML=rows;
+    const to=Math.round(distanceMeters(p,{lat:front.lat,lng:front.lon}));
+    const carry=Math.round(distanceMeters(p,{lat:back.lat,lng:back.lon}));
+    return {o,to,carry,i};
+  });
+
+  if(box){
+    box.innerHTML=items.map(({o,to,carry})=>
+      `<div class="obstacle-row"><div><div class="obstacle-name">${o.name}</div><div class="obstacle-sub">${o.side==='right'?'Right':'Left'} side</div></div><div class="obstacle-num">${to} m<span>TO</span></div><div class="obstacle-num carry">${carry} m<span>CARRY</span></div></div>`
+    ).join('');
+  }
+
+  if(overlay){
+    const pos=[
+      {x:2,y:59, side:'left'},   // lower right bunkers
+      {x:68,y:55, side:'right'}, // lower right bunker
+      {x:2,y:37, side:'left'},   // fairway bunker
+      {x:2,y:12, side:'left'},   // left green bunker
+      {x:68,y:13, side:'right'}  // right green bunker
+    ];
+    overlay.innerHTML=items.map(({o,to,carry},i)=>{
+      const q=pos[i];
+      return `<div class="obstacle-badge" style="left:${q.x}%;top:${q.y}%"><span>${o.name}</span><b>${to} m</b><span>TO</span><b>${carry} m</b><span>CARRY</span></div>`;
+    }).join('');
+    applyMapTransform();
+  }
   const acc=p.accuracy?`GPS ±${Math.round(p.accuracy)} m`:'';
   if($('obstacleAccuracy'))$('obstacleAccuracy').textContent=acc;
 }

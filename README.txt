@@ -1,4 +1,4 @@
-Golf Games v1.18 GPS + Obstacles
+Golf Games v1.19 GPS + Obstacle Overlay
 
 Changes:
 - Clean portrait Hole 1 map.

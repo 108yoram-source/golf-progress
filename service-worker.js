@@ -1,4 +1,4 @@
-const CACHE='golf-games-v1.18-gps';
+const CACHE='golf-games-v1.19-obstacle-overlay';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./service-worker.js','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
