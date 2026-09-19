@@ -42,7 +42,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
 .gps-shot:first-child{border-top:0}
 .gps-shot b{font-size:17px;color:var(--green)}
 .gps-meta{font-size:12px;color:var(--muted)}
-.gps-actions{display:flex;gap:8px;flex-wrap:wrap}.gps-actions button{flex:1;min-width:120px}
+.gps-actions{display:flex;gap:8px;flex-wrap:wrap}.gps-actions button{flex:1;min-width:120px}.green-distance{padding:12px;border-radius:12px;background:#e8f3eb;color:var(--green);font-weight:750;font-size:18px;margin:10px 0 8px}.green-distance.missing{background:#fff5d9;color:#6d5413;font-size:14px;font-weight:600}
 </style>
 </head>
 <body>
@@ -97,11 +97,14 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
   <div class="card gps-card">
     <div class="topline"><h3 style="margin:0">GPS Shot Distance</h3><span class="muted" id="gpsAccuracy"></span></div>
     <div id="gpsStatus" class="gps-status">GPS not started</div>
+    <div id="greenDistance" class="green-distance">Green center: not set</div>
     <div class="gps-actions">
       <button id="startGpsBtn" class="secondary" onclick="startGPS()">Start GPS</button>
       <button id="ballHereBtn" class="primary" disabled onclick="ballHere()">Ball Here</button>
+      <button id="setGreenBtn" class="secondary" disabled onclick="setGreenCenter()">Update Green Center Here</button>
       <button id="undoGpsBtn" class="outline" disabled onclick="undoGPS()">Undo</button>
     </div>
+    <div id="greenHint" class="gps-meta" style="margin-top:7px"></div>
     <div id="gpsShotsList" style="margin-top:8px"></div>
   </div>
   <div class="card">
@@ -127,7 +130,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;margin-top:25px}
   <div class="topline"><h2>Recent games</h2><button class="outline" onclick="show('home')">Back</button></div>
   <div id="recentList" class="card"></div>
 </section>
-<footer>Golf Games v1.8 GPS · Data is stored locally on this device</footer>
+<footer>Golf Games v1.10 GPS · Green distance · Preloaded green centers · Data is stored locally on this device</footer>
 </main>
 
 <div id="penaltyModal" class="modal"><div class="modalbox">
@@ -146,6 +149,14 @@ const tees={
  white:[371,192,399,350,134,502,343,279,525,473,140,363,399,378,149,387,402,482],
  red:[300,138,299,266,85,386,265,210,408,391,98,274,307,290,121,298,314,377]
 };
+const COURSE_GREEN_CENTERS={
+  1:{lat:56.949176,lon:9.257429}, 2:{lat:56.949188,lon:9.252476}, 3:{lat:56.949699,lon:9.246763},
+  4:{lat:56.951593,lon:9.240493}, 5:{lat:56.952386,lon:9.238148}, 6:{lat:56.950627,lon:9.241091},
+  7:{lat:56.948772,lon:9.245698}, 8:{lat:56.948128,lon:9.247220}, 9:{lat:56.946857,lon:9.251146},
+ 10:{lat:56.946109,lon:9.251519},11:{lat:56.947910,lon:9.244106},12:{lat:56.948539,lon:9.242639},
+ 13:{lat:56.950114,lon:9.240531},14:{lat:56.951115,lon:9.241887},15:{lat:56.949315,lon:9.245151},
+ 16:{lat:56.948788,lon:9.252321},17:{lat:56.948349,lon:9.251863},18:{lat:56.947619,lon:9.252122}
+};
 let setup={holes:18,tee:'yellow'}, game=null;
 let gpsState={active:false,point:null};
 const $=id=>document.getElementById(id);
@@ -162,7 +173,7 @@ function selected(group){return document.querySelector('#'+group+' .selected')?.
 function startGame(){
  setup.holes=selected('holesChoices')||'18';setup.tee=selected('teeChoices')||'yellow';
  let indexes=setup.holes==='front9'?[0,1,2,3,4,5,6,7,8]:setup.holes==='back9'?[9,10,11,12,13,14,15,16,17]:[...Array(18).keys()];
- game={id:Date.now(),date:new Date().toISOString(),player:$('player').value.trim()||'Player',tee:setup.tee,indexes,holePos:0,holes:indexes.map(i=>({number:i+1,par:pars[i],distance:tees[setup.tee][i],shots:[],putts:[],penalties:[],gpsStart:null,gpsShots:[]}))};
+ game={id:Date.now(),date:new Date().toISOString(),player:$('player').value.trim()||'Player',tee:setup.tee,indexes,holePos:0,holes:indexes.map(i=>({number:i+1,par:pars[i],distance:tees[setup.tee][i],shots:[],putts:[],penalties:[],gpsStart:null,gpsShots:[],greenCenter:COURSE_GREEN_CENTERS[i+1]?{...COURSE_GREEN_CENTERS[i+1]}:null,greenCenterSource:'course-map-estimate'}))};
  renderHole();show('game');
 }
 function current(){return game.holes[game.holePos]}
@@ -230,9 +241,41 @@ function distanceMeters(a,b){
   const x=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(x));
 }
+function greenDistanceFrom(point,h){
+  return point&&h?.greenCenter?distanceMeters(point,h.greenCenter):null;
+}
+function renderGreenDistance(point=current()?.gpsStart){
+  const h=current(); const box=$('greenDistance'),hint=$('greenHint'); if(!box||!h)return;
+  if(!h.greenCenter){
+    box.textContent='Green center: not set'; box.classList.add('missing');
+    hint.textContent='No preloaded green position. Stand at the approximate center of the green and press “Update Green Center Here”.';
+    return;
+  }
+  box.classList.remove('missing');
+  const d=greenDistanceFrom(point,h);
+  box.textContent=d===null?'Green center saved · distance unavailable':`Green center: ${Math.round(d)} m`;
+  hint.textContent=h.greenCenterSource==='course-map-estimate'?'Preloaded estimate from course map/scorecard. You can update it with GPS on the course.':'Green center saved for this hole.';
+}
+async function setGreenCenter(){
+  if(!gpsState.active){setGPSStatus('Start GPS first, then stand at the center of the green.','warn');return}
+  setGPSStatus('Getting a stable GPS position for the green center…','warn');
+  $('setGreenBtn').disabled=true;
+  try{
+    const pos=await getStablePosition();
+    const point={lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy||null};
+    const h=current(); h.greenCenter=point;
+    setGPSStatus(`Green center saved · GPS accuracy ${point.accuracy?Math.round(point.accuracy)+' m':'unknown'}`);
+    renderGreenDistance(gpsState.point); renderGPS();
+  }catch(e){
+    setGPSStatus('GPS failed: '+(e.message||'permission denied or timeout'),'error');
+  }finally{
+    $('setGreenBtn').disabled=!gpsState.active;
+  }
+}
 function stopGPS(){
   gpsState.active=false;
   if($('ballHereBtn'))$('ballHereBtn').disabled=true;
+  if($('setGreenBtn'))$('setGreenBtn').disabled=true;
 }
 async function startGPS(){
   if(!gpsSupported()){setGPSStatus('This device/browser does not support GPS.','error');return}
@@ -245,6 +288,7 @@ async function startGPS(){
     h.gpsStart=point; h.gpsShots=h.gpsShots||[];
     gpsState={active:true,point};
     $('ballHereBtn').disabled=false;
+    $('setGreenBtn').disabled=false;
     $('undoGpsBtn').disabled=!(h.gpsShots.length>0);
     $('startGpsBtn').disabled=false;
     setGPSStatus(`GPS active · start point recorded · accuracy ${point.accuracy?Math.round(point.accuracy)+' m':'unknown'}`);
@@ -274,6 +318,8 @@ async function ballHere(){
     gpsState.point=end;
     $('ballHereBtn').disabled=false;
     $('undoGpsBtn').disabled=false;
+    const toGreen=greenDistanceFrom(end,h);
+    h.gpsShots[h.gpsShots.length-1].distanceToGreen=toGreen===null?null:Math.round(toGreen*10)/10;
     setGPSStatus(`Ball recorded · ${metres.toFixed(1)} m · next shot starts here`);
     renderGPS();
   }catch(e){
@@ -288,6 +334,7 @@ function undoGPS(){
   gpsState.point=h.gpsShots.length?h.gpsShots[h.gpsShots.length-1].end:h.gpsStart;
   $('undoGpsBtn').disabled=!h.gpsShots.length;
   $('ballHereBtn').disabled=!gpsState.active;
+  $('setGreenBtn').disabled=!gpsState.active;
   setGPSStatus(gpsState.active?(h.gpsShots.length?`Undid last GPS shot · ${gpsState.point.accuracy?Math.round(gpsState.point.accuracy)+' m accuracy':''}`:'GPS active · start point recorded'):'GPS not started');
   renderGPS();
 }
@@ -298,7 +345,9 @@ function renderGPS(){
   $('gpsAccuracy').textContent=gpsState.point?.accuracy?`±${Math.round(gpsState.point.accuracy)} m`:''; 
   $('undoGpsBtn').disabled=!h.gpsShots.length;
   $('ballHereBtn').disabled=!gpsState.active;
-  box.innerHTML=h.gpsShots.length?h.gpsShots.map((s,i)=>`<div class="gps-shot"><div><b>${i+1}. ${s.distance.toFixed(1)} m</b><div class="gps-meta">${s.club} · GPS accuracy ±${s.accuracy?Math.round(s.accuracy):'?'} m</div></div><span class="muted">shot ${i+1}</span></div>`).join(''):'<div class="gps-meta">No GPS shots recorded on this hole.</div>';
+  $('setGreenBtn').disabled=!gpsState.active;
+  renderGreenDistance(gpsState.point||h.gpsStart||null);
+  box.innerHTML=h.gpsShots.length?h.gpsShots.map((s,i)=>`<div class="gps-shot"><div><b>${i+1}. ${s.distance.toFixed(1)} m</b><div class="gps-meta">${s.club} · GPS accuracy ±${s.accuracy?Math.round(s.accuracy):'?'} m${s.distanceToGreen!=null?' · '+Math.round(s.distanceToGreen)+' m to green':''}</div></div><span class="muted">shot ${i+1}</span></div>`).join(''):'<div class="gps-meta">No GPS shots recorded on this hole.</div>';
 }
 
 wireChoices();
