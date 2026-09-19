@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f6f43">
+<title>Golf Progress</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%231f6f43'/%3E%3Ctext x='50' y='62' text-anchor='middle' font-size='40' fill='white'%3EG%3C/text%3E%3C/svg%3E">
+<style>
+:root{--green:#1f6f43;--green2:#2c8a55;--bg:#f4f6f5;--card:#fff;--text:#1e2a23;--muted:#6b756f;--line:#dfe5e1;--danger:#b93636}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--green),#174f31);color:#fff;padding:18px 16px calc(18px + env(safe-area-inset-top));position:sticky;top:0;z-index:10}
+header h1{margin:0;font-size:24px}.wrap{max-width:1050px;margin:auto;padding:14px 14px 100px}
+nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+nav button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 6px;font-weight:700;color:var(--text)}
+nav button.active{background:var(--green);color:#fff;border-color:var(--green)}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:12px}.grid4{grid-template-columns:repeat(4,1fr)}.grid3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 3px 12px rgba(0,0,0,.04)}
+.stat .label{font-size:13px;color:var(--muted)}.stat .value{font-size:28px;font-weight:800;margin-top:4px}
+h2{font-size:20px;margin:16px 0 10px}h3{margin:0 0 10px}
+button.primary{background:var(--green);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-weight:800}
+button.secondary{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-weight:700}
+button.danger{background:#fff;border:1px solid #e5b9b9;color:var(--danger);border-radius:12px;padding:11px 14px;font-weight:700}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.spacer{flex:1}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:5px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit}
+textarea{min-height:70px;resize:vertical}
+.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:center}th{color:var(--muted);font-weight:700}
+.hole{display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr 1fr;gap:7px;align-items:end;padding:8px 0;border-bottom:1px solid var(--line)}
+.hole b{align-self:center}.toggle{display:flex;gap:5px}.toggle button{flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:700}.toggle button.on{background:#e6f3eb;border-color:#8fc5a5;color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.mini{background:#f8faf9;border:1px solid var(--line);padding:10px;border-radius:12px}.mini .n{font-size:20px;font-weight:800}
+canvas{width:100%;height:240px}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.small{font-size:12px;color:var(--muted)}
+.empty{padding:20px;text-align:center;color:var(--muted)}
+footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));z-index:9}
+@media(max-width:760px){.grid4,.grid3{grid-template-columns:repeat(2,1fr)}.formgrid{grid-template-columns:repeat(2,1fr)}.hole{grid-template-columns:42px repeat(2,1fr);gap:6px}.hole .wide{grid-column:span 2}.hole .desktopOnly{display:block}nav button{font-size:12px;padding:10px 2px}}
+@media(min-width:761px){footer{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap" style="padding:0 14px"><h1>Golf Progress</h1><div class="small" style="color:#dceee4">מעקב אחרי סיבובים, אימונים והתקדמות</div></div></header>
+<div class="wrap">
+<nav id="nav">
+<button data-view="dashboard" class="active">סיכום</button>
+<button data-view="round">סיבוב חדש</button>
+<button data-view="practice">אימון</button>
+<button data-view="history">היסטוריה</button>
+</nav>
+
+<section id="dashboard" class="view active">
+<h2>המדדים שלך</h2>
+<div class="grid grid4">
+<div class="card stat"><div class="label">Handicap</div><div class="value" id="sHcp">—</div></div>
+<div class="card stat"><div class="label">ממוצע Score</div><div class="value" id="sScore">—</div></div>
+<div class="card stat"><div class="label">ממוצע Putts</div><div class="value" id="sPutts">—</div></div>
+<div class="card stat"><div class="label">Fairways</div><div class="value" id="sFW">—</div></div>
+</div>
+<h2>יעד הנדיקאפ</h2>
+<div class="card">
+  <div class="formgrid">
+    <div><label>Handicap נוכחי</label><input id="goalHcp" type="number" step="0.1" value="29.7"></div>
+    <div><label>יעד Handicap</label><input id="targetHcp" type="number" step="0.1" value="25.0"></div>
+    <div><label>הנדיקאפ שנרשם לאחרונה</label><div id="latestHcp" style="font-size:24px;font-weight:800;padding-top:6px">—</div></div>
+    <div><label>פער ליעד</label><div id="hcpGap" style="font-size:24px;font-weight:800;padding-top:6px">—</div></div>
+  </div>
+  <div class="small" style="margin-top:8px">היעד הוא כלי מעקב אישי; החישוב הרשמי של WHS אינו מבוצע באפליקציה הזו.</div>
+</div>
+<h2>מגמה</h2>
+<div class="card"><canvas id="scoreChart" width="900" height="240"></canvas></div>
+<h2>סוגי חבטות</h2>
+<div class="card">
+  <div id="shotStats" class="kpis"></div>
+  <div class="small" style="margin-top:8px">בגרסה זו כל חור מקבל "סוג חבטה בולט". בגרסה הבאה אפשר לרשום מספר מדויק מכל סוג חבטה בכל חור.</div>
+</div>
+<h2>מדדים נוספים</h2>
+<div class="card"><div class="kpis" id="kpis"></div></div>
+<h2>סיבובים אחרונים</h2>
+<div class="card" id="recentRounds"></div>
+</section>
+
+<section id="round" class="view">
+<h2>סיבוב חדש</h2>
+<div class="card" style="margin-bottom:12px">
+  <b>מדידת מרחק אוטומטית עם GPS</b>
+  <div class="small" style="margin-top:5px">בכל חור לחץ "התחל GPS" ליד הכדור הראשון. אחרי כל חבטה, כשאתה מגיע לכדור, לחץ "הכדור כאן". האפליקציה מחשבת את המרחק ושומרת אותו עם המועדון. נדרש אישור מיקום בדפדפן.</div>
+</div>
+<div class="card">
+<div class="formgrid">
+<div><label>תאריך</label><input id="rDate" type="date"></div>
+<div><label>מגרש</label><input id="rCourse" placeholder="שם המגרש"></div>
+<div><label>Handicap בתחילת הסיבוב</label><input id="rHcp" type="number" step="0.1" placeholder="למשל 29.7"></div>
+<div><label>הערה כללית</label><input id="rNote" placeholder="איך היה הסיבוב?"></div>
+</div>
+</div>
+<div id="holes"></div>
+<div class="card" style="margin-top:12px">
+<div class="row"><button class="primary" id="saveRound">שמור סיבוב</button><button class="secondary" id="clearRound">נקה</button><div class="spacer"></div><strong id="roundTotals">0 חורים</strong></div>
+</div>
+</section>
+
+<section id="practice" class="view">
+<h2>אימון</h2>
+<div class="card">
+<div class="formgrid">
+<div><label>תאריך</label><input id="pDate" type="date"></div>
+<div><label>סוג אימון</label><select id="pType"><option>100m approach</option><option>7-iron</option><option>Driver</option><option>Putting</option><option>Chipping</option><option>Pitching</option><option>אחר</option></select></div>
+<div><label>כמות ניסיונות</label><input id="pAttempts" type="number" min="0"></div>
+<div><label>הצלחות</label><input id="pSuccess" type="number" min="0"></div>
+</div>
+<div style="margin-top:10px"><label>הערות</label><textarea id="pNote" placeholder="למשל: 12 מתוך 20 על/ליד הגרין"></textarea></div>
+<div class="row" style="margin-top:10px"><button class="primary" id="savePractice">שמור אימון</button></div>
+</div>
+<div class="card" style="margin-top:12px"><h3>אימונים אחרונים</h3><div id="practiceList"></div></div>
+</section>
+
+<section id="history" class="view">
+<h2>היסטוריה</h2>
+<div class="card"><div id="historyList"></div></div>
+<div class="card" style="margin-top:12px">
+<h3>גיבוי הנתונים</h3>
+<div class="row"><button class="secondary" id="exportData">ייצא נתונים</button><label class="secondary" style="cursor:pointer"><input id="importData" type="file" accept=".json" style="display:none">ייבא נתונים</label><button class="danger" id="deleteAll">מחק הכול</button></div>
+<div class="small" style="margin-top:8px">הגרסה הראשונה שומרת נתונים במכשיר. אפשר לגבות לקובץ JSON ולהחזיר אותו במחשב או בטלפון.</div>
+</div>
+</section>
+</div>
+
+<footer><div class="row" style="max-width:1050px;margin:auto"><button class="primary" onclick="showView('dashboard')" style="flex:1">סיכום</button><button class="primary" onclick="showView('round')" style="flex:1">סיבוב</button><button class="primary" onclick="showView('practice')" style="flex:1">אימון</button><button class="primary" onclick="showView('history')" style="flex:1">היסטוריה</button></div></footer>
+
+<script>
+const KEY='golf-progress-v1';
+let data={rounds:[],practices:[]};
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null'); if(x&&x.rounds&&x.practices) data=x;}catch(e){}}
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function today(){return new Date().toISOString().slice(0,10)}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id)); if(id==='dashboard') renderDashboard(); if(id==='history') renderHistory(); if(id==='practice') renderPractices(); window.scrollTo({top:0,behavior:'smooth'});}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+
+function makeHoles(){
+ const c=document.getElementById('holes'); c.innerHTML='';
+ for(let i=1;i<=18;i++){
+   const d=document.createElement('div'); d.className='card hole'; d.dataset.h=i;
+   d.innerHTML=`<b>${i}</b>
+   <div><label>Par</label><select class="par"><option>3</option><option selected>4</option><option>5</option></select></div>
+   <div><label>Score</label><input class="score" type="number" min="0" inputmode="numeric"></div>
+   <div class="desktopOnly"><label>Putts</label><input class="putts" type="number" min="0" inputmode="numeric"></div>
+   <div class="desktopOnly"><label>Penalties</label><input class="pen" type="number" min="0" inputmode="numeric"></div>
+   <div class="wide">
+    <label>Fairway</label><div class="toggle fw"><button data-v="1">כן</button><button data-v="0">לא</button></div>
+    <label style="margin-top:7px">GIR</label><div class="toggle gir"><button data-v="1">כן</button><button data-v="0">לא</button></div>
+    <label style="margin-top:7px">סוג החבטה הבולט בחור</label>
+    <select class="shotType">
+      <option>Full swing</option><option>Iron swing</option><option>Pitch</option><option>Chip</option>
+      <option>Bunker</option><option>Putting</option><option>Penalty/Recovery</option>
+    </select>
+    <div class="gpsbox wide">
+      <div class="row">
+        <strong>GPS — מדידת חבטות</strong><span class="spacer"></span>
+        <span class="small gpsstatus">לא התחיל</span>
+      </div>
+      <div class="small gpsAccuracy" style="margin-top:4px">לחץ על "התחל GPS" ליד הכדור הראשון.</div>
+      <div class="row" style="margin-top:8px">
+        <select class="gpsClub" style="max-width:180px">
+          <option>Driver</option><option>3 Wood</option><option>5 Wood</option>
+          <option>4 Hybrid</option><option>5 Iron</option><option>6 Iron</option>
+          <option>7 Iron</option><option>8 Iron</option><option>9 Iron</option>
+          <option>PW</option><option>GW</option><option>SW</option><option>LW</option>
+          <option>Chip</option><option>Pitch</option><option>Putter</option><option>אחר</option>
+        </select>
+        <button type="button" class="secondary gpsStart">📍 התחל GPS</button>
+        <button type="button" class="primary gpsBall" disabled>📍 הכדור כאן</button>
+        <button type="button" class="secondary gpsUndo" disabled>↶ בטל</button>
+      </div>
+      <div class="gpsShots" style="margin-top:8px"></div>
+    </div>
+  </div>`;
+   c.appendChild(d);
+   d.querySelectorAll('.toggle').forEach(t=>t.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{t.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on')}));
+   setupHoleGPS(d);
+ }
+ c.querySelectorAll('input,select').forEach(x=>x.oninput=updateTotals);
+}
+function readHoles(){return [...document.querySelectorAll('.hole')].map(d=>({hole:+d.dataset.h,par:+d.querySelector('.par').value,score:+(d.querySelector('.score').value||0),putts:+(d.querySelector('.putts')?.value||0),pen:+(d.querySelector('.pen')?.value||0),fw:d.querySelector('.fw .on')?.dataset.v==='1',gir:d.querySelector('.gir .on')?.dataset.v==='1',shotType:d.querySelector('.shotType')?.value||'Full swing',
+gpsShots:JSON.parse(d.dataset.gpsShots||'[]')}))}
+
+const gpsState={};
+
+function distanceMeters(a,b){
+ const R=6371000, p1=a.lat*Math.PI/180, p2=b.lat*Math.PI/180;
+ const dp=(b.lat-a.lat)*Math.PI/180, dl=(b.lon-a.lon)*Math.PI/180;
+ const x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+ return 2*R*Math.asin(Math.sqrt(x));
+}
+function fmtMeters(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km'}
+
+function getStablePosition(){
+ return new Promise((resolve,reject)=>{
+   if(!navigator.geolocation){reject(new Error('הדפדפן אינו תומך ב-GPS'));return}
+   const samples=[];
+   const started=Date.now();
+   const watch=navigator.geolocation.watchPosition(pos=>{
+     samples.push(pos);
+     const elapsed=Date.now()-started;
+     if(samples.length>=3 || elapsed>=4500){
+       navigator.geolocation.clearWatch(watch);
+       if(!samples.length){reject(new Error('לא התקבלה נקודת GPS'));return}
+       samples.sort((a,b)=>(a.coords.accuracy||999)-(b.coords.accuracy||999));
+       const best=samples[0];
+       resolve({
+         lat:best.coords.latitude, lon:best.coords.longitude,
+         accuracy:best.coords.accuracy||null,
+         timestamp:best.timestamp
+       });
+     }
+   },err=>{
+     navigator.geolocation.clearWatch(watch);
+     reject(new Error(err.code===1?'אישור GPS נדחה. יש לאפשר Location בדפדפן.':
+       err.code===2?'לא ניתן לקבל מיקום GPS כרגע.':'קבלת GPS נכשלה.'));
+   },{enableHighAccuracy:true,maximumAge:0,timeout:5000});
+ });
+}
+
+function renderGPSHole(d){
+ const shots=JSON.parse(d.dataset.gpsShots||'[]');
+ const list=d.querySelector('.gpsShots');
+ list.innerHTML=shots.length?shots.map(s=>`
+   <div class="gpsshot">
+     <div><b>חבטה ${s.n}</b> · ${esc(s.club)}<div class="small">דיוק GPS: ${s.accuracy?Math.round(s.accuracy)+' מ׳':'—'}</div></div>
+     <div class="gpsdist">${fmtMeters(s.distance)}</div>
+   </div>`).join(''):'<div class="small">עדיין לא נמדדו חבטות.</div>';
+ d.querySelector('.gpsstatus').textContent=shots.length?`נמדדו ${shots.length} חבטות`:'לא התחיל';
+ d.querySelector('.gpsUndo').disabled=!shots.length;
+ d.querySelector('.gpsBall').disabled=false;
+}
+
+function setupHoleGPS(d){
+ d.dataset.gpsShots='[]';
+ const start=d.querySelector('.gpsStart'), ball=d.querySelector('.gpsBall'), undo=d.querySelector('.gpsUndo');
+ const status=d.querySelector('.gpsstatus'), acc=d.querySelector('.gpsAccuracy');
+ start.onclick=async()=>{
+   start.disabled=true; status.textContent='מקבל GPS…'; acc.textContent='עומד על הכדור הראשון? קבלת מיקום יכולה לקחת כמה שניות.';
+   try{
+     const pos=await getStablePosition();
+     gpsState[d.dataset.h]={last:pos,initial:pos,started:true};
+     status.textContent='GPS פעיל — נקודת התחלה נשמרה';
+     acc.textContent=`דיוק GPS משוער: ${pos.accuracy?Math.round(pos.accuracy)+' מ׳':'לא ידוע'}. עכשיו חבט ובלחיצה על "הכדור כאן" תימדד החבטה.`;
+     ball.disabled=false;
+   }catch(e){
+     status.textContent='שגיאת GPS'; acc.textContent=e.message; start.disabled=false;
+   }
+ };
+ ball.onclick=async()=>{
+   const state=gpsState[d.dataset.h];
+   if(!state?.started){alert('תחילה לחץ על "התחל GPS" ליד הכדור.');return}
+   ball.disabled=true; status.textContent='מודד מיקום…';
+   try{
+     const pos=await getStablePosition();
+     const club=d.querySelector('.gpsClub').value;
+     const dist=distanceMeters(state.last,pos);
+     const shots=JSON.parse(d.dataset.gpsShots||'[]');
+     shots.push({n:shots.length+1,club,distance:dist,start:state.last,end:pos,accuracy:pos.accuracy||null});
+     d.dataset.gpsShots=JSON.stringify(shots);
+     state.last=pos;
+     renderGPSHole(d);
+     acc.textContent=`נקודת כדור נשמרה. דיוק GPS משוער: ${pos.accuracy?Math.round(pos.accuracy)+' מ׳':'לא ידוע'}. בחר את המועדון לחבטה הבאה.`;
+   }catch(e){
+     status.textContent='שגיאת GPS'; acc.textContent=e.message;
+   }finally{ball.disabled=false}
+ };
+ undo.onclick=()=>{
+   const shots=JSON.parse(d.dataset.gpsShots||'[]');
+   if(!shots.length)return;
+   shots.pop(); d.dataset.gpsShots=JSON.stringify(shots);
+   if(shots.length){
+     const state=gpsState[d.dataset.h]; if(state)state.last=shots[shots.length-1].end;
+     acc.textContent='החבטה האחרונה בוטלה. נקודת ההתחלה של החבטה הבאה היא הכדור האחרון שנשמר.';
+   }else{
+     const state=gpsState[d.dataset.h]; if(state)state.last=state.initial||state.last;
+     acc.textContent='אין חבטות שמורות. נקודת ההתחלה נשארה נקודת ה-GPS הראשונה.';
+   }
+   renderGPSHole(d);
+ };
+ renderGPSHole(d);
+}
+
+function updateTotals(){const hs=readHoles().filter(h=>h.score);document.getElementById('roundTotals').textContent=`${hs.length} חורים · ${hs.reduce((a,h)=>a+h.score,0)||0} חבטות`}
+document.getElementById('rDate').value=today(); document.getElementById('pDate').value=today();
+
+
+document.getElementById('goalHcp').onchange=()=>{localStorage.setItem('golf-goal-hcp',document.getElementById('goalHcp').value);renderDashboard()};
+document.getElementById('targetHcp').onchange=()=>{localStorage.setItem('golf-target-hcp',document.getElementById('targetHcp').value);renderDashboard()};
+
+document.getElementById('saveRound').onclick=()=>{
+ const holes=readHoles().filter(h=>h.score); if(!holes.length){alert('יש להזין לפחות חור אחד');return}
+ data.rounds.push({id:crypto.randomUUID(),date:document.getElementById('rDate').value,course:document.getElementById('rCourse').value,handicap:+document.getElementById('rHcp').value||null,note:document.getElementById('rNote').value,holes,total:holes.reduce((a,h)=>a+h.score,0)});
+ save(); alert('הסיבוב נשמר'); makeHoles(); document.getElementById('rCourse').value='';document.getElementById('rNote').value='';document.getElementById('rHcp').value='';showView('dashboard');
+};
+document.getElementById('clearRound').onclick=makeHoles;
+
+document.getElementById('savePractice').onclick=()=>{
+ const attempts=+document.getElementById('pAttempts').value||0, success=+document.getElementById('pSuccess').value||0;
+ data.practices.push({id:crypto.randomUUID(),date:document.getElementById('pDate').value,type:document.getElementById('pType').value,attempts,success,note:document.getElementById('pNote').value});
+ save(); document.getElementById('pAttempts').value='';document.getElementById('pSuccess').value='';document.getElementById('pNote').value='';renderPractices();alert('האימון נשמר');
+};
+
+function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function calc(){
+ const R=data.rounds;
+ const holes=R.flatMap(r=>r.holes);
+ const scores=R.map(r=>r.total);
+ const putts=R.map(r=>r.holes.reduce((a,h)=>a+h.putts,0));
+ const played=holes.length;
+ const fw=holes.filter(h=>h.fw).length;
+ const fwEligible=holes.filter(h=>h.par>=4).length;
+ const gir=holes.filter(h=>h.gir).length;
+ const penalties=holes.reduce((a,h)=>a+h.pen,0);
+ const shotCounts={};
+ holes.forEach(h=>{const k=h.shotType||'Full swing';shotCounts[k]=(shotCounts[k]||0)+1});
+ return {scores,avgScore:avg(scores),avgPutts:avg(putts),fwPct:fwEligible?fw/fwEligible*100:0,girPct:played?gir/played*100:0,penalties,avgToPar:avg(R.map(r=>r.holes.reduce((a,h)=>a+(h.score-h.par),0))),rounds:R.length,shotCounts}
+}
+function renderDashboard(){
+ const c=calc();
+ const lastHcp=[...data.rounds].reverse().find(r=>r.handicap!=null)?.handicap;
+ document.getElementById('sHcp').textContent=lastHcp??'—';
+ document.getElementById('sScore').textContent=c.avgScore?c.avgScore.toFixed(1):'—';
+ document.getElementById('sPutts').textContent=c.avgPutts?c.avgPutts.toFixed(1):'—';
+ document.getElementById('sFW').textContent=c.fwPct?c.fwPct.toFixed(0)+'%':'—';
+ const gh=localStorage.getItem('golf-goal-hcp')||'29.7', th=localStorage.getItem('golf-target-hcp')||'25.0';
+ document.getElementById('goalHcp').value=gh; document.getElementById('targetHcp').value=th;
+ document.getElementById('latestHcp').textContent=lastHcp!=null?Number(lastHcp).toFixed(1):gh;
+ const gap=(Number(lastHcp??gh)-Number(th));
+ document.getElementById('hcpGap').textContent=gap>=0?gap.toFixed(1)+' עד היעד':'יעד הושג';
+ const shotOrder=['Full swing','Iron swing','Pitch','Chip','Bunker','Putting','Penalty/Recovery'];
+ document.getElementById('shotStats').innerHTML=shotOrder.filter(k=>c.shotCounts[k]).map(k=>`<div class="mini"><div class="small">${k}</div><div class="n">${c.shotCounts[k]}</div></div>`).join('')||'<div class="empty">אין עדיין נתוני חבטות.</div>';
+ document.getElementById('kpis').innerHTML=[['GIR',c.girPct?c.girPct.toFixed(0)+'%':'—'],['עונשים',c.penalties],['ממוצע מול Par',c.avgToPar?c.avgToPar.toFixed(1):'—'],['סיבובים',c.rounds]].map(x=>`<div class="mini"><div class="small">${x[0]}</div><div class="n">${x[1]}</div></div>`).join('');
+ const rr=[...data.rounds].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);document.getElementById('recentRounds').innerHTML=rr.length?rr.map(r=>`<div class="list-item"><div><b>${esc(r.course||'סיבוב')}</b><div class="small">${r.date} · ${r.holes.length} חורים · GPS: ${r.holes.flatMap(h=>h.gpsShots||[]).length} חבטות</div></div><b>${r.total}</b></div>`).join(''):'<div class="empty">עדיין אין סיבובים. הזן את הראשון כדי להתחיל לראות מגמות.</div>';
+ drawChart(c.scores);
+}
+function drawChart(vals){const cv=document.getElementById('scoreChart'),ctx=cv.getContext('2d'),w=cv.width=cv.clientWidth*2,h=cv.height=480;ctx.clearRect(0,0,w,h);ctx.font='24px system-ui';if(!vals.length){ctx.fillStyle='#6b756f';ctx.fillText('אין עדיין נתוני סיבובים',40,70);return}const min=Math.min(...vals)-1,max=Math.max(...vals)+1, pad=60;ctx.strokeStyle='#dfe5e1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad,20);ctx.lineTo(pad,h-pad);ctx.lineTo(w-20,h-pad);ctx.stroke();ctx.strokeStyle='#1f6f43';ctx.lineWidth=5;ctx.beginPath();vals.forEach((v,i)=>{const x=pad+(w-pad-30)*(i/(vals.length-1||1));const y=20+(max-v)/(max-min)*(h-pad-30);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();vals.forEach((v,i)=>{const x=pad+(w-pad-30)*(i/(vals.length-1||1));const y=20+(max-v)/(max-min)*(h-pad-30);ctx.fillStyle='#1f6f43';ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1e2a23';ctx.fillText(v,x-10,y-15);});}
+function renderPractices(){const p=[...data.practices].sort((a,b)=>b.date.localeCompare(a.date));document.getElementById('practiceList').innerHTML=p.length?p.slice(0,15).map(x=>`<div class="list-item"><div><b>${esc(x.type)}</b><div class="small">${x.date} · ${x.success}/${x.attempts} · ${x.attempts?Math.round(x.success/x.attempts*100):0}%</div></div><div class="small">${esc(x.note||'')}</div></div>`).join(''):'<div class="empty">אין עדיין אימונים.</div>'}
+function renderHistory(){const r=[...data.rounds].sort((a,b)=>b.date.localeCompare(a.date));document.getElementById('historyList').innerHTML=r.length?r.map(x=>`<div class="list-item"><div><b>${esc(x.course||'סיבוב')}</b><div class="small">${x.date} · ${x.holes.length} חורים · HCP ${x.handicap??'—'}</div></div><div><b>${x.total}</b><button class="danger" style="margin-inline-start:8px" onclick="deleteRound('${x.id}')">מחק</button></div></div>`).join(''):'<div class="empty">אין היסטוריה.</div>'}
+function deleteRound(id){data.rounds=data.rounds.filter(x=>x.id!==id);save();renderHistory();renderDashboard()}
+document.getElementById('exportData').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='golf-progress-backup.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('importData').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!x.rounds||!x.practices)throw Error();data=x;save();renderDashboard();renderHistory();renderPractices();alert('הנתונים יובאו בהצלחה');}catch{alert('קובץ לא תקין')}};rd.readAsText(f)};
+document.getElementById('deleteAll').onclick=()=>{if(confirm('למחוק את כל הנתונים?')){data={rounds:[],practices:[]};save();renderDashboard();renderHistory();renderPractices()}};
+
+load();makeHoles();renderDashboard();renderPractices();renderHistory();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
