@@ -232,7 +232,7 @@ function getStablePosition(){
       if(!readings.length){done=true;if(timer)clearTimeout(timer);reject(err);}
       else finish();
     },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
-    timer=setTimeout(finish,4500);
+    timer=setTimeout(finish,15000);
   });
 }
 function distanceMeters(a,b){
